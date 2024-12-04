@@ -179,6 +179,15 @@ pub use include_assets_decode::named::NamedArchive;
 /// println!("{} assets were included", archive1.number_of_assets() + archive2.number_of_assets());
 /// ```
 ///
+/// Include the directory "assets" while specifying an ignore file:
+///
+/// ```
+/// use include_assets::{NamedArchive, include_dir};
+/// let archive = NamedArchive::load(include_dir!("assets", ignorefile = "assets/.ignorefile"));
+/// println!("{} assets were included", archive.number_of_assets());
+/// assert_eq!(archive.get("assets//ignored.txt"), None);
+/// ```
+///
 /// # Limitations
 ///
 /// - The directory may only contains files, directories, or symbolic links which point (directly or indirectly) to a file or directory.

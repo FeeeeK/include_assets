@@ -1,0 +1,4 @@
+ignored.txt
+
+# ignore this file, because it is in the assets folder
+.ignorefile

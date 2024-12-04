@@ -85,9 +85,24 @@ pub fn parse_symlink_rules(lit: Option<syn::Lit>) -> SymlinkRules {
     }
 }
 
+pub fn parse_ignore_file_path(lit: Option<syn::Lit>) -> Option<std::path::PathBuf> {
+    match lit {
+        None => None,
+        Some(syn::Lit::Str(s)) => {
+            let ignorepath = std::path::PathBuf::from(s.value());
+            if !ignorepath.exists() {
+                panic!("Ignore file '{}' does not exist", ignorepath.display());
+            }
+            Some(ignorepath)
+        }
+        Some(_) => panic!("invalid ignore file path (expected a string literal)"),
+    }
+}
+
 pub fn read_dir<P: AsRef<std::path::Path>>(
     base: P,
     symlink_rules: SymlinkRules,
+    ignore_file_path: Option<&std::path::PathBuf>,
 ) -> anyhow::Result<std::vec::Vec<(smartstring::SmartString<smartstring::LazyCompact>, std::vec::Vec<u8>)>> {
     let (follow_symlinks, ignore_symlinks) = match symlink_rules {
         SymlinkRules::Forbid => (false, false),
@@ -95,12 +110,25 @@ pub fn read_dir<P: AsRef<std::path::Path>>(
         SymlinkRules::Follow => (true, false),
     };
     let mut assets = vec![];
-    for dirent in walkdir::WalkDir::new(base.as_ref()).sort_by_file_name().follow_links(follow_symlinks) {
+
+    let mut walk_builder = ignore::WalkBuilder::new(base.as_ref());
+    walk_builder
+        .standard_filters(false) // Do not apply standard filters (e.g. .gitignore)
+        .follow_links(follow_symlinks) // Follow symlinks based on rules
         // Note: sorting by file name is important to ensure the same compressed data independent of the creation/modification order of assets
-        let ent = dirent?;
-        if ent.file_type().is_dir() {
+        .sort_by_file_name(Ord::cmp);
+
+    if let Some(ignore_file_path) = ignore_file_path {
+        if let Some(err) = walk_builder.add_ignore(ignore_file_path) {
+            panic!("Failed to add ignore file: {}", err);
+        }
+    }
+
+    for ent in walk_builder.build().filter_map(Result::ok) {
+        let file_type = ent.file_type().expect("Couldn't get file type");
+        if file_type.is_dir() {
             continue; // ignore
-        } else if ent.file_type().is_file() {
+        } else if file_type.is_file() {
             let filename = ent
                 .path()
                 .strip_prefix(base.as_ref())
@@ -109,7 +137,7 @@ pub fn read_dir<P: AsRef<std::path::Path>>(
                 .with_context(|| format!("Non-UTF-8 file name: '{}'", ent.path().display()))?;
             let data = std::fs::read(ent.path()).with_context(|| format!("Couldn't read file '{}'", ent.path().display()))?;
             assets.push((filename.into(), data))
-        } else if ent.file_type().is_symlink() {
+        } else if file_type.is_symlink() {
             if ignore_symlinks {
                 continue; // ignore
             } else {

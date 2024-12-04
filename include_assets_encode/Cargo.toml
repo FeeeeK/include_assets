@@ -16,11 +16,11 @@ lz4 = ["include_assets_decode/lz4"]
 zstd = ["include_assets_decode/zstd"]
 
 [dependencies]
-anyhow = "1.0.71"
+anyhow = "1.0.93"
 include_assets_decode = { path = "../include_assets_decode", version = "0.1.0" }
-proc-macro2 = "1.0.59"
-quote = "1.0.28"
+proc-macro2 = "1.0.92"
+quote = "1.0.37"
 smartstring = "1.0.1"
-syn = { version = "2.0.17", features = ["full"] }
-thiserror = "1.0.40"
-walkdir = "2.3.3"
+syn = { version = "2.0.90", features = ["full"] }
+thiserror = "1.0.69"
+ignore = "0.4.23"

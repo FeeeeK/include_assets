@@ -12,13 +12,14 @@ pub fn include_dir(tokens: proc_macro::TokenStream) -> proc_macro::TokenStream {
     std::env::set_current_dir(manifest_dir).unwrap();
 
     let args = syn::parse_macro_input!(tokens as parse::IncludeDirArgs);
-    let opts = parse::kv_args_to_hashmap(args.opts.into_iter(), ["compression", "level", "links"].into_iter().collect());
+    let opts = parse::kv_args_to_hashmap(args.opts.into_iter(), ["compression", "level", "links", "ignorefile"].into_iter().collect());
 
     //println!("current directory: {}", std::env::current_dir().unwrap().display());
     //println!("path: {}", args.path.value());
 
     let (codec, codec_tokens, _codec_type_tokens) = common::parse_codec(opts.get("compression").cloned(), opts.get("level").cloned());
     let symlink_rules = named::parse_symlink_rules(opts.get("links").cloned());
+    let ignore_file = named::parse_ignore_file_path(opts.get("ignorefile").cloned());
 
     let named::NamedArchive {
         compressed_data,
@@ -29,7 +30,7 @@ pub fn include_dir(tokens: proc_macro::TokenStream) -> proc_macro::TokenStream {
         checksums,
     } = named::prepare_named_archive(
         codec.borrow() as &dyn Codec<CompressionError = common::MyError, DecompressionError = common::MyError>,
-        named::read_dir(args.path.value(), symlink_rules).unwrap(),
+        named::read_dir(args.path.value(), symlink_rules, ignore_file.as_ref()).unwrap(),
     )
     .unwrap();
 
